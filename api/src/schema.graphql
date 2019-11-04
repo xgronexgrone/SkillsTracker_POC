@@ -1,0 +1,121 @@
+type Person 
+{
+	email:String!
+	firstname: String!
+	lastname: String!
+	
+	## Skills of a person, with expertiseLevel info
+	skills: [PersonSkill]	
+	
+	## Skills of a person, but without expertiseLevel info
+	# skills0: [Skill] @relation(name: "HAS_SKILL", direction: "OUT")
+}
+
+type Skill 
+{
+	name1: String!
+	name2: String
+	
+	## People who have this skill, with expertiseLevel info
+	persons: [PersonSkill]	
+	
+	## People who have this skill, but without expertiseLevel info
+	# persons0: [Person] @relation(name: "HAS_SKILL", direction: "IN")
+	
+	## Calculate whether it is a technical skill or not
+	isTechnical: Boolean
+    @cypher(
+      statement: "MATCH (this) RETURN 'TechnicalSkill' IN labels(this)"
+    )	
+}
+
+type PersonSkill @relation(name: "HAS_SKILL") 
+{
+    from: Person!
+    to: Skill!
+    expertiseLevel: Int!
+}
+
+type Query 
+{
+	GetSkillsBySubstring(substring: String!): [Skill] @cypher
+	(
+		statement: """MATCH (s:Skill) 
+		WHERE s.name1 CONTAINS $substring 
+		RETURN s"""
+	)
+	
+	GetSimilarPersons(person_email: String!, first: Int = 3): [Person] @cypher
+	(
+		## Simple person similarity calculation: multiple matching skills by 0.9 and matching timezone by 0.1
+		## Temp version because we have not stored timezone info yet
+		## May need to enhance later to something like this:     
+		## https://neo4j.com/docs/graph-algorithms/current/labs-algorithms/pearson/#algorithms-similarity-pearson-usecase
+	
+		statement: """MATCH (p1:Person {email:$person_email})
+		MATCH (p1)-[ps:HAS_SKILL]->(s:Skill)
+		MATCH (p2:Person) WHERE p2 <> p1
+		OPTIONAL MATCH (p2)-[os:HAS_SKILL]->(s) // overlapping skills
+		WITH p2, COUNT(ps) AS totalSkillsCnt, COUNT(os) AS overlappingSkillsCnt		
+		WITH p2, totalSkillsCnt, overlappingSkillsCnt, 1 AS overlappingTimezoneCnt
+		WITH p2, (0.9 * overlappingSkillsCnt) + (0.1 * overlappingTimezoneCnt) AS totalScore
+		RETURN p2
+		ORDER BY totalScore DESC 
+		LIMIT $first"""
+		## RETURN p2.firstname, p2.lastname, totalScore, overlappingSkillsCnt
+	)		
+	
+	GetSimilarPersonsNew(person_email: String!, first: Int = 3): [Person] @cypher
+	(
+		## Simple person similarity calculation: multiple matching skills by 0.9 and matching timezone by 0.1
+		## May need to enhance later to something like this:     
+		## https://neo4j.com/docs/graph-algorithms/current/labs-algorithms/pearson/#algorithms-similarity-pearson-usecase
+	
+		statement: """MATCH (p1:Person {email:$person_email})
+		MATCH (p1)-[ps:HAS_SKILL]->(s:Skill)
+		MATCH (p1)-[:HAS_CURRENT_TIMEZONE]->(tz:Timezone)
+		MATCH (p2:Person) WHERE p2 <> p1
+		OPTIONAL MATCH (p2)-[os:HAS_SKILL]->(s) // overlapping skills
+		WITH p2, tz, COUNT(ps) AS totalSkillsCnt, COUNT(os) AS overlappingSkillsCnt		
+		OPTIONAL MATCH (p2)-[otz:HAS_CURRENT_TIMEZONE]->(tz) // overlapping timezone
+		WITH p2, totalSkillsCnt, overlappingSkillsCnt, COUNT(otz) AS overlappingTimezoneCnt
+		WITH p2, (0.9 * overlappingSkillsCnt) + (0.1 * overlappingTimezoneCnt) AS totalScore
+		RETURN p2
+		ORDER BY totalScore DESC 
+		LIMIT $first"""
+		## RETURN p2.firstname, p2.lastname, totalScore, overlappingSkillsCnt
+	)	
+}
+
+type Mutation 
+{	
+	MergeSkill(name1: String!, name2: String, is_technical: Boolean = false): Skill @cypher
+	(
+		statement: """MERGE (s:Skill {name1:$name1}) 
+		SET s.name2 = coalesce($name2,'') 
+		FOREACH (ignoreme IN CASE WHEN $is_technical THEN [1] ELSE [] END | SET s:TechnicalSkill)	
+		FOREACH (ignoreme IN CASE WHEN $is_technical THEN [] ELSE [1] END | REMOVE s:TechnicalSkill)	
+		RETURN s"""
+	)		
+
+	MergePerson(email: String!, firstname: String, lastname: String): Person @cypher
+	(
+		statement: """MERGE (p:Person {email:$email}) 
+		SET p.firstname = coalesce($firstname,''), p.lastname = coalesce($lastname,'') 
+		RETURN p"""
+	)	
+	
+	## Create the relationship only if both Person and Skill already exist, 
+	## but if the relation does exist too, merge into the existing one
+	## and update its expertiseLevel, which may have changed (store timestamp too?)
+	MergePersonSkill(person_email: String!, skill_name1: String!, expertise_level: Int!): PersonSkill @cypher
+	(
+		statement: """MATCH (p:Person {email:$person_email})
+		MATCH (s:Skill {name1:$skill_name1})
+		MERGE (p)-[ps:HAS_SKILL]->(s)
+		SET ps.expertiseLevel = $expertise_level
+		RETURN ps"""
+	)		
+}
+
+
