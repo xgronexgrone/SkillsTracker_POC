@@ -5,10 +5,11 @@ type Person
 	lastname: String!
 	
 	## Skills of a person, with expertiseLevel info
-	skills: [PersonSkill]	
+	## No way to order by expertiseLevel descendent out of the box
+	personSkills(first: Int = 3, offset: Int = 0): [PersonSkill]	
 	
 	## Skills of a person, but without expertiseLevel info
-	# skills0: [Skill] @relation(name: "HAS_SKILL", direction: "OUT")
+	# skills: [Skill] @relation(name: "HAS_SKILL", direction: "OUT")	
 }
 
 type Skill 
@@ -17,10 +18,11 @@ type Skill
 	name2: String
 	
 	## People who have this skill, with expertiseLevel info
-	persons: [PersonSkill]	
+	## No way to order by expertiseLevel descendent out of the box
+	skillPersons(first: Int = 3, offset: Int = 0): [PersonSkill]	
 	
 	## People who have this skill, but without expertiseLevel info
-	# persons0: [Person] @relation(name: "HAS_SKILL", direction: "IN")
+	# persons: [Person] @relation(name: "HAS_SKILL", direction: "IN")
 	
 	## Calculate whether it is a technical skill or not
 	isTechnical: Boolean
@@ -85,6 +87,22 @@ type Query
 		LIMIT $first"""
 		## RETURN p2.firstname, p2.lastname, totalScore, overlappingSkillsCnt
 	)	
+	
+	GetSimilarSkills(skill_name1: String!, first: Int = 3): [Skill] @cypher
+	(
+		## Simple skill similarity calculation
+		## May need to enhance later
+	
+		statement: """MATCH (s1:Skill {name1:$skill_name1})
+		MATCH (p1:Person)-[ps1:HAS_SKILL]->(s1)
+		WHERE ps1.expertiseLevel >= 4
+		MATCH (p1)-[ps2:HAS_SKILL]->(s2:Skill)
+		WHERE s1 <> s2 AND ps2.expertiseLevel >= 4
+		WITH s2, COUNT(ps2) AS totalCnt
+		RETURN s2
+		ORDER BY totalCnt DESC 
+		LIMIT $first"""
+	)		
 }
 
 type Mutation 
