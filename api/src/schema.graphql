@@ -59,6 +59,7 @@ type Query
 		RETURN p2
 		ORDER BY totalScore DESC 
 		LIMIT $first"""
+		
 	)		
 	
 	GetSimilarSkills(skill_name1: String!, first: Int = 3): [Skill] @cypher
