@@ -46,61 +46,30 @@ type Query
 		WHERE s.name1 CONTAINS $substring 
 		RETURN s"""
 	)
-	
+			
 	GetSimilarPersons(person_email: String!, first: Int = 3): [Person] @cypher
 	(
-		## Simple person similarity calculation: multiple matching skills by 0.9 and matching timezone by 0.1
-		## Temp version because we have not stored timezone info yet
-		## May need to enhance later to something like this:     
-		## https://neo4j.com/docs/graph-algorithms/current/labs-algorithms/pearson/#algorithms-similarity-pearson-usecase
-	
 		statement: """MATCH (p1:Person {email:$person_email})
-		MATCH (p1)-[ps:HAS_SKILL]->(s:Skill)
+		MATCH (p1)-[hs1:HAS_SKILL]->(s:Skill) WHERE hs1.expertiseLevel >= 3
 		MATCH (p2:Person) WHERE p2 <> p1
-		OPTIONAL MATCH (p2)-[os:HAS_SKILL]->(s) // overlapping skills
-		WITH p2, COUNT(ps) AS totalSkillsCnt, COUNT(os) AS overlappingSkillsCnt		
+		OPTIONAL MATCH (p2)-[hs2:HAS_SKILL]->(s) WHERE hs2.expertiseLevel >= 3 // overlapping skills
+		WITH p2, COUNT(hs1) AS totalSkillsCnt, COUNT(hs2) AS overlappingSkillsCnt		
 		WITH p2, totalSkillsCnt, overlappingSkillsCnt, 1 AS overlappingTimezoneCnt
 		WITH p2, (0.9 * overlappingSkillsCnt) + (0.1 * overlappingTimezoneCnt) AS totalScore
 		RETURN p2
 		ORDER BY totalScore DESC 
 		LIMIT $first"""
-		## RETURN p2.firstname, p2.lastname, totalScore, overlappingSkillsCnt
 	)		
-	
-	GetSimilarPersonsNew(person_email: String!, first: Int = 3): [Person] @cypher
-	(
-		## Simple person similarity calculation: multiple matching skills by 0.9 and matching timezone by 0.1
-		## May need to enhance later to something like this:     
-		## https://neo4j.com/docs/graph-algorithms/current/labs-algorithms/pearson/#algorithms-similarity-pearson-usecase
-	
-		statement: """MATCH (p1:Person {email:$person_email})
-		MATCH (p1)-[ps:HAS_SKILL]->(s:Skill)
-		MATCH (p1)-[:HAS_CURRENT_TIMEZONE]->(tz:Timezone)
-		MATCH (p2:Person) WHERE p2 <> p1
-		OPTIONAL MATCH (p2)-[os:HAS_SKILL]->(s) // overlapping skills
-		WITH p2, tz, COUNT(ps) AS totalSkillsCnt, COUNT(os) AS overlappingSkillsCnt		
-		OPTIONAL MATCH (p2)-[otz:HAS_CURRENT_TIMEZONE]->(tz) // overlapping timezone
-		WITH p2, totalSkillsCnt, overlappingSkillsCnt, COUNT(otz) AS overlappingTimezoneCnt
-		WITH p2, (0.9 * overlappingSkillsCnt) + (0.1 * overlappingTimezoneCnt) AS totalScore
-		RETURN p2
-		ORDER BY totalScore DESC 
-		LIMIT $first"""
-		## RETURN p2.firstname, p2.lastname, totalScore, overlappingSkillsCnt
-	)	
 	
 	GetSimilarSkills(skill_name1: String!, first: Int = 3): [Skill] @cypher
 	(
-		## Simple skill similarity calculation
-		## May need to enhance later
-	
 		statement: """MATCH (s1:Skill {name1:$skill_name1})
-		MATCH (p1:Person)-[ps1:HAS_SKILL]->(s1)
-		WHERE ps1.expertiseLevel >= 4
-		MATCH (p1)-[ps2:HAS_SKILL]->(s2:Skill)
-		WHERE s1 <> s2 AND ps2.expertiseLevel >= 4
-		WITH s2, COUNT(ps2) AS totalCnt
+		MATCH (p1:Person)-[hs1:HAS_SKILL]->(s1) WHERE hs1.expertiseLevel >= 3
+		OPTIONAL MATCH (p1)-[hs2:HAS_SKILL]->(s2:Skill) WHERE s2 <> s1
+		AND hs2.expertiseLevel >= 3
+		WITH s2, COUNT(hs1) AS totalPersonsCnt, COUNT(hs2) AS skillPersonsCnt		
 		RETURN s2
-		ORDER BY totalCnt DESC 
+		ORDER BY skillPersonsCnt DESC 
 		LIMIT $first"""
 	)		
 }
