@@ -1,0 +1,213 @@
+{
+	Person(email:"randall.gonzalez@moduscreate.com")
+	{
+		firstname,
+		lastname,
+		email,
+		personSkills
+		{
+			Skill{name1}
+			expertiseLevel,
+		}
+	}
+}
+
+{
+	Skill(name1:"eg/python")
+	{
+		name1,
+		name2,
+		isTechnical
+	}
+}
+
+{
+	Skill(orderBy: [isTechnical_asc, name1_asc])
+	{
+		name1,
+		name2,
+		isTechnical
+	}
+}
+
+{
+	Skill(name1:"eg/python")
+	{
+		name1,
+		name2,
+		skillPersons(first:2)
+		{
+			Person
+			{	
+				firstname, 
+				lastname
+			}
+			expertiseLevel
+		}
+	}
+}
+
+{
+	GetSimilarPersons(person_email:"randall.gonzalez@moduscreate.com", first:5, offset:0)
+	{
+		email,
+		personSkills
+		{
+			Skill{name1}
+		}
+	}
+}
+
+{
+	GetSimilarSkills(skill_name1:"dodb/sql databases", first:3, offset:0)
+	{
+		name1
+		name2,
+		isTechnical
+	}
+}
+
+------------------------------------------------------------------------------------
+
+mutation
+{
+	MergeSkill(name1:"MySQL", name2:"", is_technical:false){
+		name1,
+		name2,
+		isTechnical,
+		skillPersons{expertiseLevel}
+	}
+}
+
+mutation
+{
+	MergePerson(email:"randall.gonzalez@moduscreate.com", firstname:"Randall", lastname:"Test"){
+		firstname,
+		lastname,
+		email
+	}
+}
+
+mutation
+{
+	MergePersonSkill(person_email:"randall.gonzalez@moduscreate.com", skill_name1:"React", expertise_level:1){
+		expertiseLevel
+	}
+}
+
+## Empty result because the person does not exist
+mutation
+{
+	MergePersonSkill(person_email:"randall.gonzaleez@moduscreate.com", skill_name1:"React", expertise_level:1){
+		expertiseLevel
+	}
+}
+
+## Wrong
+mutation
+{
+	MergePersonSkill(person_email:"randall.gonzalez@moduscreate.com", skill_name1:"React", expertise_level:3){
+		Person {firstname},
+		expertiseLevel
+	}
+}
+
+## Right
+mutation
+{
+	MergePersonSkill(person_email:"randall.gonzalez@moduscreate.com", skill_name1:"React", expertise_level:3){
+		from {firstname},
+		expertiseLevel
+	}
+}
+
+-----------------------------------------
+
+## More complex filtering:
+
+## Give me folks whose name starts with Ran, that have at least 1 skill with expertiseLevel higher than 3
+## Out of those give me the first name of the person, and skills with expertiseLevel higher than 3
+{
+	Person
+	( 
+		filter: 
+		{
+			email_starts_with: "ran"
+			personSkills_some: { expertiseLevel_gt: 3 }
+		}
+	) 
+	{
+		firstname
+		personSkills 
+		(
+			filter: { expertiseLevel_gt: 3 }
+			## orderBy: [expertiseLevel_desc] ## --> does NOT work
+		)
+		{ 
+			Skill { name1 }
+			expertiseLevel 
+		}
+	}
+}
+
+## Give me folks that know React
+{
+	Person
+	( 
+		filter: 
+		{
+			personSkills_some: 
+			{ 
+ 				Skill:{name1_in: ["eg/react"]}	
+			}
+		}
+	) 
+	{
+		firstname
+		personSkills
+		{ 
+			Skill { name1 }
+			expertiseLevel 
+		}
+	}
+}
+
+## Give me folks that know React and NodeJS
+{
+	Person
+	( 
+		filter: 
+		{
+			AND:
+			[
+				{
+					personSkills_some: 
+					{ 
+						Skill:{name1_in: ["eg/react"]}	
+					}
+				},
+				{
+					personSkills_some: 
+					{ 
+						Skill:{name1_in: ["eg/nodejs"]}	
+					}
+				}
+			]
+		}
+	) 
+	{
+		firstname
+		personSkills
+		{ 
+			Skill { name1 }
+			expertiseLevel 
+		}
+	}
+}
+
+
+
+
+
+
+

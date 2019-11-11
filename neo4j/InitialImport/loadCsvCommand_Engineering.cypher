@@ -1,5 +1,6 @@
 // Pull the distinct skills and merge them
-LOAD CSV FROM 'file:///Engineering.csv' AS headerLine
+//LOAD CSV FROM 'file:///Engineering.csv' AS headerLine
+LOAD CSV FROM 'https://raw.githubusercontent.com/xgronexgrone/SkillsTracker_POC/master/neo4j/InitialImport/Datasets/Engineering.csv?token=ALCOBTINDNKIDHIZHSCGRYC5ZCS7W' AS headerLine
 WITH headerLine LIMIT 1
 WITH headerLine, apoc.coll.indexOf(headerLine, 'Current Role at Modus') + 1 AS startSkill,
 apoc.coll.indexOf(headerLine, 'Please list any certifications you currently hold') -1 AS endSkill
@@ -12,7 +13,8 @@ RETURN s.name1
 ORDER BY s.name1;
 
 // Pull the distinct persons and merge them
-LOAD CSV WITH HEADERS FROM 'file:///Engineering.csv' AS line
+//LOAD CSV WITH HEADERS FROM 'file:///Engineering.csv' AS line
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/xgronexgrone/SkillsTracker_POC/master/neo4j/InitialImport/Datasets/Engineering.csv?token=ALCOBTINDNKIDHIZHSCGRYC5ZCS7W' AS line
 WITH DISTINCT toLower(line.Username) AS email 
 MERGE (p:Person {email: email})
 SET p.firstname = '', p.lastname = ''
@@ -20,11 +22,13 @@ RETURN p.email
 ORDER BY p.email;
 
 // Pull the distinct relations and merge them too
-LOAD CSV FROM 'file:///Engineering.csv' AS headerLine
+//LOAD CSV FROM 'file:///Engineering.csv' AS headerLine
+LOAD CSV FROM 'https://raw.githubusercontent.com/xgronexgrone/SkillsTracker_POC/master/neo4j/InitialImport/Datasets/Engineering.csv?token=ALCOBTINDNKIDHIZHSCGRYC5ZCS7W' AS headerLine
 WITH headerLine LIMIT 1
 WITH headerLine, apoc.coll.indexOf(headerLine, 'Current Role at Modus') + 1 AS startSkill,
 apoc.coll.indexOf(headerLine, 'Please list any certifications you currently hold') -1 AS endSkill
-LOAD CSV FROM 'file:///Engineering.csv' AS dataLine
+//LOAD CSV FROM 'file:///Engineering.csv' AS dataLine
+LOAD CSV FROM 'https://raw.githubusercontent.com/xgronexgrone/SkillsTracker_POC/master/neo4j/InitialImport/Datasets/Engineering.csv?token=ALCOBTINDNKIDHIZHSCGRYC5ZCS7W' AS dataLine
 WITH headerLine, dataLine, startSkill, endSkill SKIP 1
 UNWIND RANGE(startSkill, endSkill) AS i
 WITH toLower(dataLine[1]) as person_email, 'eg/' + toLower(headerLine[i]) as skill_name1, coalesce(toInt(dataLine[i]),1) AS expertiseLevel
